@@ -15,15 +15,15 @@
  * TODO: implement tests once frontend/src/pages/HomePage.tsx exists.
  */
 
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
 
 test.describe("Home page", () => {
-  // TODO: test_hero_section_renders_headline
-  // TODO: test_search_bar_is_visible_and_focusable
-  // TODO: test_popular_clinics_section_shows_cards
-  // TODO: test_see_all_clinics_button_navigates_to_clinics_page
-  // TODO: test_specialties_grid_renders_12_items
-  // TODO: test_specialty_click_navigates_to_filtered_clinic_list
-  // TODO: test_how_it_works_section_renders_three_steps
-  // TODO: test_chatbot_toggle_is_visible
+  test.skip("test_hero_section_renders_headline", async () => {});
+  test.skip("test_search_bar_is_visible_and_focusable", async () => {});
+  test.skip("test_popular_clinics_section_shows_cards", async () => {});
+  test.skip("test_see_all_clinics_button_navigates_to_clinics_page", async () => {});
+  test.skip("test_specialties_grid_renders_12_items", async () => {});
+  test.skip("test_specialty_click_navigates_to_filtered_clinic_list", async () => {});
+  test.skip("test_how_it_works_section_renders_three_steps", async () => {});
+  test.skip("test_chatbot_toggle_is_visible", async () => {});
 });

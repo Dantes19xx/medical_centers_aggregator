@@ -27,23 +27,23 @@
  * TODO: implement tests once frontend/src/components/appointment/AppointmentForm.tsx exists.
  */
 
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
 
 test.describe("Appointment booking wizard — happy path", () => {
-  // TODO: test_full_booking_flow_completes_and_shows_confirmation
-  // TODO: test_confirmation_screen_shows_appointment_number
-  // TODO: test_add_to_calendar_button_visible_after_success
+  test.skip("test_full_booking_flow_completes_and_shows_confirmation", async () => {});
+  test.skip("test_confirmation_screen_shows_appointment_number", async () => {});
+  test.skip("test_add_to_calendar_button_visible_after_success", async () => {});
 });
 
 test.describe("Appointment booking wizard — validation", () => {
-  // TODO: test_invalid_phone_format_shows_error_message
-  // TODO: test_invalid_email_shows_error_message
-  // TODO: test_name_too_short_shows_error_message
-  // TODO: test_past_date_not_selectable_in_calendar
-  // TODO: test_cannot_proceed_without_selecting_time_slot
+  test.skip("test_invalid_phone_format_shows_error_message", async () => {});
+  test.skip("test_invalid_email_shows_error_message", async () => {});
+  test.skip("test_name_too_short_shows_error_message", async () => {});
+  test.skip("test_past_date_not_selectable_in_calendar", async () => {});
+  test.skip("test_cannot_proceed_without_selecting_time_slot", async () => {});
 });
 
 test.describe("Appointment booking wizard — navigation", () => {
-  // TODO: test_back_button_returns_to_previous_step
-  // TODO: test_progress_indicator_updates_per_step
+  test.skip("test_back_button_returns_to_previous_step", async () => {});
+  test.skip("test_progress_indicator_updates_per_step", async () => {});
 });
