@@ -1,8 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || "",
-});
+import { getOpenAIClient, OPENAI_MODEL } from "../openai-client";
 
 export interface SymptomInput {
   symptoms: string;
@@ -41,17 +37,17 @@ export async function analyzeSymptomsWithAgent(
 3. Общие рекомендации
 `;
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+  const openai = getOpenAIClient();
+  const response = await openai.chat.completions.create({
+    model: OPENAI_MODEL,
     max_tokens: 2048,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
   });
 
-  const analysis = response.content
-    .filter((c) => c.type === "text")
-    .map((c) => (c as Anthropic.TextBlock).text)
-    .join(" ");
+  const analysis = response.choices[0]?.message.content || "";
 
   // Extract specializations heuristically
   const specKeywords: Record<string, string> = {
