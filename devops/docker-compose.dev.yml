@@ -25,7 +25,7 @@ services:
       DATABASE_URL: postgresql://meduser:medpass@db:5432/medical_db
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       SECRET_KEY: dev-secret-key-change-in-prod
-      CORS_ORIGINS: http://localhost:3000
+      CORS_ORIGINS: '["http://localhost:3000","http://localhost:5173"]'
       ENVIRONMENT: development
     ports:
       - "8000:8000"
