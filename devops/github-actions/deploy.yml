@@ -1,0 +1,62 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# For the seminar, prefer GitHub integrations in Railway and Vercel.
+# This token-based workflow is optional and should be enabled only after
+# adding the required GitHub Secrets.
+
+jobs:
+  deploy-backend:
+    name: Deploy backend to Railway
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_SERVICE_NAME: ${{ secrets.RAILWAY_SERVICE_NAME }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Skip if Railway secrets are missing
+        if: ${{ env.RAILWAY_TOKEN == '' || env.RAILWAY_SERVICE_NAME == '' }}
+        run: echo "Railway deploy skipped. Add RAILWAY_TOKEN and RAILWAY_SERVICE_NAME secrets to enable it."
+
+      - name: Install Railway CLI
+        if: ${{ env.RAILWAY_TOKEN != '' && env.RAILWAY_SERVICE_NAME != '' }}
+        run: npm install -g @railway/cli
+
+      - name: Deploy backend
+        if: ${{ env.RAILWAY_TOKEN != '' && env.RAILWAY_SERVICE_NAME != '' }}
+        working-directory: backend
+        run: |
+          railway up --service "$RAILWAY_SERVICE_NAME"
+
+  deploy-frontend:
+    name: Deploy frontend to Vercel
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Skip if Vercel secrets are missing
+        if: ${{ env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == '' }}
+        run: echo "Vercel deploy skipped. Add VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID secrets to enable it."
+
+      - name: Deploy with Vercel CLI
+        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
+        working-directory: frontend
+        run: |
+          npm install -g vercel
+          vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+          vercel build --prod --token "$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
