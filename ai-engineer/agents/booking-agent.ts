@@ -1,10 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { db } from "../db";
 import { v4 as uuidv4 } from "uuid";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || "",
-});
+import { getOpenAIClient, OPENAI_MODEL } from "../openai-client";
 
 export interface BookingRequest {
   centerId: string;
@@ -50,17 +46,17 @@ export async function processBooking(
 Составь дружелюбное подтверждение на русском языке.
 `;
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+  const openai = getOpenAIClient();
+  const response = await openai.chat.completions.create({
+    model: OPENAI_MODEL,
     max_tokens: 1024,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
   });
 
-  const message = response.content
-    .filter((c) => c.type === "text")
-    .map((c) => (c as Anthropic.TextBlock).text)
-    .join(" ");
+  const message = response.choices[0]?.message.content || "Запись подтверждена.";
 
   return { success: true, message, appointmentId };
 }

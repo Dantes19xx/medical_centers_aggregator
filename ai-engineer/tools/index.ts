@@ -8,6 +8,7 @@ export interface Tool {
   name: string;
   description: string;
   parameters: Record<string, { type: string; description: string; enum?: string[] }>;
+  required?: string[];
   execute: (args: Record<string, unknown>) => Promise<unknown>;
 }
 

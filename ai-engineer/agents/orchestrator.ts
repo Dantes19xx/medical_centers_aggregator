@@ -1,14 +1,22 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from "openai/resources/chat/completions";
 import { tools, toolsMap } from "../tools";
 import { memoryStore } from "../memory/memory-store";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || "",
-});
+import { getOpenAIClient, OPENAI_MODEL } from "../openai-client";
 
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+function parseToolArguments(rawArguments: string): Record<string, unknown> {
+  try {
+    return JSON.parse(rawArguments || "{}");
+  } catch {
+    return {};
+  }
 }
 
 export async function orchestrateChat(
@@ -32,12 +40,19 @@ export async function orchestrateChat(
 - Для медицинских вопросов давай только общую информацию и рекомендуй обратиться к врачу.
 - Отвечай на русском языке, если пользователь пишет по-русски.
 - Сохраняй контекст разговора для персонализации.
+- Отвечай кратко, так как ответ показывается в маленьком чат-виджете.
+- Для результатов поиска показывай максимум 3 варианта.
+- Для каждого врача указывай только: имя, рейтинг, цену и клинику.
+- Не добавляй длинные описания, образование, биографию, адрес, телефон или сайт, если пользователь прямо не попросил.
+- Не используй большие markdown-разделы и заголовки. Лучше 2-4 короткие строки.
+- В конце добавь короткий вопрос: "Хотите записаться?"
 
 Текущий контекст пользователя:
 ${JSON.stringify(userContext, null, 2)}
 `;
 
-  const messages: Anthropic.Messages.MessageParam[] = [
+  const messages: ChatCompletionMessageParam[] = [
+    { role: "system", content: systemPrompt },
     ...history.map((m) => ({
       role: m.role,
       content: m.content,
@@ -45,65 +60,89 @@ ${JSON.stringify(userContext, null, 2)}
     { role: "user", content: message },
   ];
 
-  const toolDefinitions = tools.map((t) => ({
-    name: t.name,
-    description: t.description,
-    input_schema: {
-      type: "object" as const,
-      properties: t.parameters,
-      required: Object.keys(t.parameters).filter((k) =>
-        // Mark all as required for simplicity; in real app, use optional marker
-        true
-      ),
+  const toolDefinitions: ChatCompletionTool[] = tools.map((t) => ({
+    type: "function",
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: {
+        type: "object",
+        properties: t.parameters,
+        required: t.required || Object.keys(t.parameters),
+      },
     },
   }));
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+  const openai = getOpenAIClient();
+  const response = await openai.chat.completions.create({
+    model: OPENAI_MODEL,
     max_tokens: 4096,
-    system: systemPrompt,
     messages,
     tools: toolDefinitions,
+    tool_choice: "auto",
   });
 
   const toolCalls: unknown[] = [];
+  const assistantMessage = response.choices[0]?.message;
+  const toolResultMessages: ChatCompletionMessageParam[] = [];
 
-  for (const block of response.content) {
-    if (block.type === "tool_use") {
-      const tool = toolsMap.get(block.name);
-      if (tool) {
-        const result = await tool.execute(block.input);
-        toolCalls.push({
-          tool: block.name,
-          input: block.input,
-          output: result,
-        });
+  for (const toolCall of assistantMessage?.tool_calls || []) {
+    if (toolCall.type !== "function") continue;
 
-        // Save to memory
-        await memoryStore.addInteraction(userId, {
-          tool: block.name,
-          input: block.input,
-          output: result,
-          timestamp: new Date().toISOString(),
-        });
-      }
+    const tool = toolsMap.get(toolCall.function.name);
+    if (tool) {
+      const input = parseToolArguments(toolCall.function.arguments);
+      const result = await tool.execute(input);
+      toolCalls.push({
+        tool: toolCall.function.name,
+        input,
+        output: result,
+      });
+      toolResultMessages.push({
+        role: "tool",
+        tool_call_id: toolCall.id,
+        content: JSON.stringify(result),
+      });
+
+      // Save to memory
+      await memoryStore.addInteraction(userId, {
+        tool: toolCall.function.name,
+        input,
+        output: result,
+        timestamp: new Date().toISOString(),
+      });
     }
+  }
+
+  let textResponse = assistantMessage?.content || "";
+  if (assistantMessage?.tool_calls?.length && toolResultMessages.length) {
+    const finalResponse = await openai.chat.completions.create({
+      model: OPENAI_MODEL,
+      max_tokens: 2048,
+      messages: [
+        ...messages,
+        {
+          role: "assistant",
+          content: assistantMessage.content || null,
+          tool_calls: assistantMessage.tool_calls,
+        },
+        ...toolResultMessages,
+      ],
+    });
+
+    textResponse = finalResponse.choices[0]?.message.content || textResponse;
+  }
+
+  if (!textResponse) {
+    textResponse = "Готово. Чем ещё могу помочь?";
   }
 
   // Update user context in memory
   await memoryStore.updateUserContext(userId, {
     lastMessage: message,
-    lastResponse: response.content
-      .filter((c) => c.type === "text")
-      .map((c) => (c as Anthropic.TextBlock).text)
-      .join(" "),
+    lastResponse: textResponse,
     lastToolCalls: toolCalls,
   });
-
-  const textResponse = response.content
-    .filter((c) => c.type === "text")
-    .map((c) => (c as Anthropic.TextBlock).text)
-    .join(" ") || "Готово. Чем ещё могу помочь?";
 
   return { response: textResponse, toolCalls };
 }
